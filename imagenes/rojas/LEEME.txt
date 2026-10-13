@@ -1,0 +1,3 @@
+Poné acá tus imágenes, numeradas: 1.jpg, 2.jpg, 3.jpg ...
+(las cartas con borde rojo van en la carpeta "rojas")
+Después ajustá las cantidades en cartas.js
