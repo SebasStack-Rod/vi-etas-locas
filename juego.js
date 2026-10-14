@@ -1,6 +1,6 @@
 const $=s=>document.querySelector(s);
 const h=(t,c,...k)=>{const e=document.createElement(t);if(c)e.className=c;k.flat().forEach(x=>e.append(x));return e};
-const btn=(t,f,d)=>{const b=h('button','btn',t);b.onclick=f;b.disabled=!!d;return b};
+const btn=(t,f,d,c)=>{const b=h('button','btn'+(c?' '+c:''),t);b.onclick=f;b.disabled=!!d;return b};
 const EMO=['🐔','🦆','🍌','🤡','💩','🧀','🦄','👽','🍕','🔪','🧸','🦖'],AV=['🤠','👻','🤖','🐸','🦊','🐙','👹','🐵'];
 const MODOS={normal:'Normal',cabron:'Modo cabrón',maraton:'Maratón',infinita:'La historia interminable'};
 const DESC={normal:'Reglas clásicas. Gana quien llegue primero a los puntos elegidos.',
@@ -9,7 +9,7 @@ const DESC={normal:'Reglas clásicas. Gana quien llegue primero a los puntos ele
  infinita:'Sin cartas rojas, 10 cartas cada uno. Todos suman viñetas a una historia larga; los demás pueden rechazarlas votando. Gana quien se quede sin cartas.'};
 let me=localStorage.jhId||(localStorage.jhId=Math.random().toString(36).slice(2,10));
 let isHost=false,peer,conn,code,V,S,SN,K,sel=[],myName=localStorage.jhName||'',out=false;
-const aviso=m=>{const a=$('#aviso');a.textContent=m;a.style.display='block';clearTimeout(a.t);a.t=setTimeout(()=>a.style.display='none',5000)};
+const aviso=m=>{const a=$('#aviso');a.textContent=m;a.classList.add('on');clearTimeout(a.t);a.t=setTimeout(()=>a.classList.remove('on'),5000)};
 const shuf=a=>{for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
 
 /* ---------- CARTAS ---------- */
@@ -26,7 +26,7 @@ function card(id,cls='',big){
   const red=id[0]=='r',n=id.slice(1),d=h('div','carta '+(red?'roja ':'')+cls),i=new Image();
   i.src=`imagenes/${red?'rojas':'normales'}/${n}.${CONFIG.ext}`;i.draggable=false;
   i.onerror=()=>{i.remove();d.prepend(h('div','ph',h('b','',EMO[n%EMO.length]),h('span','','#'+n)))};
-  d.append(i);
+  d.dataset.id=id;d.append(i,h('i','brillo'));
   if(!big){
     d.oncontextmenu=e=>e.preventDefault();
     d.onpointerenter=e=>{if(e.pointerType=='mouse'){lupa.innerHTML='';lupa.append(card(id,'xl2',true))}};
@@ -174,34 +174,142 @@ function reconectar(){
   unirse(code,()=>setTimeout(()=>{if(conn&&conn.open)return;serve(code,SN,()=>setTimeout(reconectar,2000))},1500+k*3500));
 }
 
+/* ---------- ANIMACIONES Y EXTRAS ---------- */
+const RM=matchMedia('(prefers-reduced-motion:reduce)').matches;
+let T={},LP={};
+const resetT=()=>{T={hand:null,sel:[],pos:new Map(),score:{},players:new Set(),ok:new Set(),judge:null,ph:null,turn:'',txt:'',acc:''}};resetT();
+const copiar=c=>(navigator.clipboard?navigator.clipboard.writeText(c):Promise.reject()).then(()=>aviso('Código copiado: '+c),()=>aviso('Código de la sala: '+c));
+
+// Sello tipo explosión de historieta
+function sello(t,c=''){
+  if(RM)return;
+  const s=h('div','sello '+c,h('span','',t));document.body.append(s);setTimeout(()=>s.remove(),1600);
+}
+// Confeti en canvas
+function confeti(n=120){
+  if(RM)return;
+  const c=h('canvas');c.id='confeti';c.width=innerWidth;c.height=innerHeight;document.body.append(c);
+  const g=c.getContext('2d'),cols=['#ffcf33','#ff3d5a','#35e0d0','#fff6dc','#b57bff'];
+  const ps=Array.from({length:n},()=>({x:innerWidth/2+(Math.random()-.5)*240,y:innerHeight*.45,vx:(Math.random()-.5)*18,vy:-Math.random()*17-4,
+    s:6+Math.random()*8,r:Math.random()*6,vr:(Math.random()-.5)*.4,c:cols[Math.random()*cols.length|0]}));
+  let t=0;
+  (function f(){
+    g.clearRect(0,0,c.width,c.height);t++;
+    ps.forEach(p=>{p.vy+=.36;p.vx*=.99;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;g.save();g.translate(p.x,p.y);g.rotate(p.r);g.fillStyle=p.c;g.fillRect(-p.s/2,-p.s/3,p.s,p.s*.6);g.restore()});
+    if(t<140)requestAnimationFrame(f);else c.remove();
+  })();
+}
+// Inclinación 3D + brillo de las cartas de la mano (solo mouse)
+addEventListener('pointermove',e=>{
+  if(e.pointerType!='mouse')return;
+  const c=e.target.closest&&e.target.closest('.mia');if(!c||c.classList.contains('off'))return;
+  const r=c.getBoundingClientRect(),x=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),y=Math.min(1,Math.max(0,(e.clientY-r.top)/r.height));
+  c.style.setProperty('--ty',((x-.5)*16).toFixed(1)+'deg');c.style.setProperty('--tx',((.5-y)*14).toFixed(1)+'deg');
+  c.style.setProperty('--mx',(x*100).toFixed(0)+'%');c.style.setProperty('--my',(y*100).toFixed(0)+'%');
+});
+addEventListener('pointerout',e=>{
+  const c=e.target.closest&&e.target.closest('.mia');
+  if(c&&!c.contains(e.relatedTarget)){c.style.removeProperty('--tx');c.style.removeProperty('--ty')}
+});
+// "..." animados en los textos de espera
+function puntos(t){const s=t.textContent;if(/…$/.test(s)){t.textContent=s.slice(0,-1);t.append(h('span','pts',h('i','','.'),h('i','','.'),h('i','','.')))}}
+// Las cartas que se jugaron vuelan desde la mano hacia el centro de la mesa
+function fantasmas(old,hand){
+  if(RM)return;
+  const c=$('.centro'),cr=c?c.getBoundingClientRect():{left:0,top:0,width:innerWidth,height:innerHeight};
+  const tx=cr.left+cr.width/2,ty=cr.top+cr.height/2;
+  old.filter(o=>!hand.includes(o.id)).forEach((o,k)=>{
+    const g=o.el.cloneNode(true),rot=o.sel?0:o.fr;
+    g.className='carta fantasma'+(o.id[0]=='r'?' roja':'');
+    g.style.cssText=`left:${o.x-o.w/2}px;top:${o.y-o.h/2}px;width:${o.w}px;height:${o.h}px`;
+    g.querySelectorAll('.num').forEach(n=>n.remove());
+    document.body.append(g);
+    const dx=tx-o.x+k*14,dy=ty-o.y;
+    g.animate([
+      {transform:`rotate(${rot}deg) scale(${o.sel?1.08:1})`,opacity:1,offset:0},
+      {transform:`translate(${dx*.8}px,${dy*.8}px) rotate(${rot+14}deg) scale(.9)`,opacity:1,offset:.7},
+      {transform:`translate(${dx}px,${dy}px) rotate(${rot+22}deg) scale(.7)`,opacity:0,offset:1}
+    ],{duration:650,easing:'cubic-bezier(.4,0,.2,1)',fill:'forwards'}).onfinish=()=>g.remove();
+  });
+}
+// Cartas nuevas del centro: caen sobre la mesa; las que estaban boca abajo se dan vuelta
+function animarCentro(){
+  const c=$('.centro');if(!c)return;
+  const cur=new Map();let k=0;
+  [...c.children].forEach((row,ri)=>{
+    [...row.querySelectorAll(':scope>.carta')].forEach((el,ci)=>{
+      if(el.classList.contains('hueco'))return;
+      const pos=ri+'.'+ci,id=el.dataset.id||'back',prev=T.pos.get(pos);cur.set(pos,id);
+      if(prev===id||RM)return;
+      if(prev==='back'&&id!=='back')el.classList.add('voltea');
+      else{el.classList.add('entra');el.style.setProperty('--d',(k++*110)+'ms');el.style.setProperty('--rot0',(Math.random()*30-15|0)+'deg')}
+    });
+  });
+  T.pos=cur;
+}
+
 /* ---------- PANTALLAS ---------- */
 function home(){
+  resetT();K='';document.body.classList.remove('juego');
   const app=$('#app');app.innerHTML='';
   const nom=h('input');nom.placeholder='Tu nombre';nom.maxLength=14;nom.value=myName;
   const cod=h('input','cod');cod.placeholder='0000';cod.maxLength=4;cod.inputMode='numeric';cod.value=localStorage.jhCode||'';
   const ok=()=>{myName=nom.value.trim();if(!myName){aviso('Escribí tu nombre');return false}localStorage.jhName=myName;out=false;return true};
-  app.append(h('div','home',h('h1','','VIÑETAS LOCAS'),h('p','texto','Armá historias absurdas con tus amigos. El juez elige la mejor.'),nom,h('br'),
-    btn('Crear sala',()=>ok()&&crear()),h('hr'),cod,btn('Unirse',()=>{if(!ok())return;if(!/^\d{4}$/.test(cod.value))return aviso('El código tiene 4 números');unirse(cod.value)})));
+  const entrar=btn('Unirse',()=>{if(!ok())return;if(!/^\d{4}$/.test(cod.value))return aviso('El código tiene 4 números');unirse(cod.value)},false,'alt');
+  const crearB=btn('Crear sala',()=>ok()&&crear());
+  nom.onkeydown=e=>{if(e.key=='Enter')crearB.click()};cod.onkeydown=e=>{if(e.key=='Enter')entrar.click()};
+  let li=0;const tit=h('h1','',...'VIÑETAS LOCAS'.split(' ').map(w=>h('span','pal',...[...w].map(ch=>{const s=h('span','letra',ch);s.style.setProperty('--i',li++);return s}),' ')));
+  tit.setAttribute('aria-label','Viñetas Locas');
+  const ids=[0,1,2,3,4].map(i=>i==2&&CONFIG.rojas?'r'+(1+Math.random()*CONFIG.rojas|0):'n'+(1+Math.random()*CONFIG.normales|0));
+  const fan=h('div','abanico',ids.map((id,i)=>{const c=card(id,'',true);c.style.setProperty('--i',i);c.style.setProperty('--fr',(i-2)*12+'deg');return c}));
+  app.append(h('div','home',fan,tit,h('p','texto','Armá historias absurdas con tus amigos. El juez elige la mejor.'),nom,h('br'),
+    crearB,h('hr'),h('p','texto chico','¿Ya tenés un código?'),cod,entrar));
 }
 function render(v){
-  V=v;const key=v.ph+v.first+v.jc+v.pend;if(key!=K){K=key;sel=[]}
-  const jg=v.judge==v.me,ph=v.ph,jn=v.pl.find(p=>p.id==v.judge),inf=v.mode=='infinita',app=$('#app');app.innerHTML='';
+  V=v;document.body.classList.add('juego');const key=v.ph+v.first+v.jc+v.pend;if(key!=K){K=key;sel=[];T.sel=[]}
+  const jg=v.judge==v.me,ph=v.ph,jn=v.pl.find(p=>p.id==v.judge),inf=v.mode=='infinita',app=$('#app');
+  const handNow=ph!='lobby'&&ph!='fin';
+  // fotos de la mano anterior (para animar las cartas que se juegan)
+  const old=handNow?[...document.querySelectorAll('.mano .mia')].map(e=>{const r=e.getBoundingClientRect();
+    return{id:e.dataset.id,x:r.left+r.width/2,y:r.top+r.height/2,w:e.offsetWidth,h:e.offsetHeight,sel:e.classList.contains('sel'),fr:parseFloat(e.style.getPropertyValue('--fr'))||0,el:e}}):[];
+  const scroll=app.scrollTop;app.innerHTML='';
   const max=(ph=='jugar'&&v.red)||(ph=='juez'&&v.tb)?2:1;
   const turno=ph=='jugar'&&!jg&&!v.mine&&(!v.tb||v.tb.includes(v.me));
-  app.append(h('div','top',h('h1','','VIÑETAS LOCAS'),h('div','sala','SALA '+v.code+' · '+(v.mode=='maraton'?'maratón, quedan '+v.left:inf?'historia interminable':v.target+' pts'+(v.mode=='cabron'?' · cabrón':'')))));
+  // sello "¡TU TURNO!" cuando te toca
+  const lab=(ph=='juez'&&jg)||turno||(ph=='hist'&&jg)?'¡TU TURNO!':ph=='cabron'&&jg?'¡ELEGÍ VÍCTIMA!':ph=='juzgar'&&jg?'¡A JUZGAR!':ph=='voto'&&!jg&&!v.voted?'¡A VOTAR!':'';
+  const tsig=lab?ph+v.first+v.jc+v.pend+v.hist.length:'';
+  if(tsig&&tsig!=T.turn)sello(lab,'cian');
+  T.turn=tsig;
+  const sala=h('div','sala',h('span','','SALA'),h('b','cod',v.code),h('span','m',v.mode=='maraton'?'Maratón, quedan '+v.left:inf?'Historia interminable':v.target+' pts'+(v.mode=='cabron'?', cabrón':'')));
+  sala.title='Tocá para copiar el código';sala.onclick=()=>copiar(v.code);
+  app.append(h('div','top',h('h1','','VIÑETAS LOCAS'),sala));
   const mesa=h('div','mesa'),centro=h('div','centro'),acc=h('div','acciones'),txt=h('p','texto');
+  const okSet=new Set();
   mesa.append(h('div','asientos',v.pl.map((p,i)=>{
-    const s=h('div','asiento'+(p.id==v.judge&&ph!='lobby'?' juez':'')+(p.on?'':' off'),h('div','av',AV[i%8]),h('b','',p.n+(p.id==v.me?' (vos)':'')),h('div'),h('div','ficha',String(inf?v.hand.length&&p.id==v.me?v.hand.length:'·':p.s)));
-    if((ph=='jugar'||ph=='voto')&&p.id!=v.judge&&p.d)s.append(h('i','ok','✔'));
-    if(ph!='lobby'&&p.id==v.judge)s.append(h('i','corona','👑'));
+    const esp=ph=='juez'||ph=='cabron'||ph=='hist'||ph=='juzgar'||ph=='resultado'?p.id==v.judge
+      :ph=='jugar'?p.id!=v.judge&&!p.d&&(!v.tb||v.tb.includes(p.id)):ph=='voto'?p.id!=v.judge&&!p.d:false;
+    const prev=T.score[p.id],up=!inf&&prev!==undefined&&p.s>prev,dn=!inf&&prev!==undefined&&p.s<prev;
+    const s=h('div','asiento'+(p.id==v.judge&&ph!='lobby'?' juez':'')+(p.on?'':' off')+(esp?' espera'+(p.id==v.me?' tuya':''):'')+(T.players.has(p.id)?'':' llega'),
+      h('div','av',AV[i%8]),h('b','',p.n+(p.id==v.me?' (vos)':'')),h('div'),
+      h('div','ficha'+(up?' sube':dn?' baja':''),String(inf?v.hand.length&&p.id==v.me?v.hand.length:'·':p.s)));
+    if(up||dn)s.append(h('span','plus'+(dn?' menos':''),up?'+'+(p.s-prev):'−'+(prev-p.s)));
+    if(esp&&p.id!=v.me)s.append(h('span','pensando',h('i'),h('i'),h('i')));
+    if((ph=='jugar'||ph=='voto')&&p.id!=v.judge&&p.d){const k=K+p.id;okSet.add(k);s.append(h('i','ok'+(T.ok.has(k)?'':' nuevo'),'✔'))}
+    if(ph!='lobby'&&p.id==v.judge)s.append(h('i','corona'+(T.judge===v.judge?'':' nueva'),'👑'));
     if(isHost&&p.id!=v.me){const x=h('button','kick','✖');x.title='Sacar de la sala';x.onclick=()=>confirm('¿Sacar a '+p.n+' de la sala?')&&act({t:'kick',id:p.id});s.append(x)}
     return s})),centro);
   const hueco=()=>h('div','carta hueco','?');
   if(ph=='lobby'){
-    const sf=h('select'),st=h('select'),md=h('select'),dsc=h('p','texto',DESC.normal);
-    v.pl.forEach(p=>sf.append(new Option(p.n,p.id)));[3,5,7,10].forEach(n=>st.append(new Option(n+' puntos',n)));st.value=CONFIG.puntosPorDefecto;
-    Object.entries(MODOS).forEach(([k,t])=>md.append(new Option(t,k)));md.onchange=()=>dsc.textContent=DESC[md.value];
-    centro.append(h('div','grande','Código: '+v.code),h('p','texto','Pasales este código a tus amigos. Hacen falta al menos 3 jugadores.'));
+    const sf=h('select'),st=h('select'),md=h('select'),dsc=h('p','texto');
+    v.pl.forEach(p=>sf.append(new Option(p.n,p.id)));[3,5,7,10].forEach(n=>st.append(new Option(n+' puntos',n)));
+    Object.entries(MODOS).forEach(([k,t])=>md.append(new Option(t,k)));
+    // recordar lo elegido aunque entre alguien más a la sala
+    st.value=LP.target||CONFIG.puntosPorDefecto;md.value=LP.mode||'normal';if(LP.first&&v.pl.some(p=>p.id==LP.first))sf.value=LP.first;
+    dsc.textContent=DESC[md.value];
+    md.onchange=()=>{LP.mode=md.value;dsc.textContent=DESC[md.value]};st.onchange=()=>LP.target=+st.value;sf.onchange=()=>LP.first=sf.value;
+    const cd=h('div','codigo',[...v.code].map((d,i)=>{const s=h('span','dig',d);s.style.setProperty('--i',i);return s}));
+    cd.title='Tocá para copiar el código';cd.onclick=()=>copiar(v.code);
+    centro.append(cd,h('p','texto','Pasales este código a tus amigos (tocalo para copiarlo). Hacen falta al menos 3 jugadores.'));
     if(isHost)acc.append(h('label','texto','Modo: ',md),dsc,h('label','texto','Primer juez / primero en jugar: ',sf),h('br'),h('label','texto','Puntos para ganar: ',st),h('br'),
       btn('¡Repartir!',()=>act({t:'start',first:sf.value,target:+st.value,mode:md.value}),v.pl.length<3));
     else txt.textContent='Esperando a que el anfitrión reparta las cartas…';
@@ -217,7 +325,7 @@ function render(v){
     else if(v.mine)txt.textContent='Carta jugada. Esperando a los demás…';
     else txt.textContent=v.red?'¡Carta roja! Elegí 2 cartas, en orden, que lleguen hasta la roja (vale doble).':'Elegí la 3ª viñeta para terminar la historia. Las de borde rojo van solo acá.';
     if(ph=='juez'&&jg&&v.tb)acc.append(btn('Jugar estas 2',()=>act({t:'jplay',cards:sel}),sel.length!=2));
-    else if(ph=='juez'&&jg&&sel.length)acc.append(btn('Ponerla ANTES',()=>act({t:'jplay',card:sel[0],pos:'antes'})),btn('Ponerla DESPUÉS',()=>act({t:'jplay',card:sel[0],pos:'despues'})));
+    else if(ph=='juez'&&jg&&sel.length)acc.append(btn('Ponerla ANTES',()=>act({t:'jplay',card:sel[0],pos:'antes'}),false,'alt'),btn('Ponerla DESPUÉS',()=>act({t:'jplay',card:sel[0],pos:'despues'})));
     if(turno)acc.append(btn('Jugar',()=>act({t:'play',cards:sel}),sel.length!=max));
   }else if(ph=='cabron'){
     centro.append(h('div','historia',card(v.first)));
@@ -228,16 +336,16 @@ function render(v){
     if(ph=='voto')centro.append(h('div','historia gana',card(v.pend),h('small','',jn.n+' propone esta viñeta')));
     if(ph=='hist'){
       txt.textContent=jg?'Tu turno: sumá una viñeta con sentido o cambiá 1 carta por 2 y perdé el turno.':'Turno de '+jn.n+'…';
-      if(jg)acc.append(btn('Jugar carta',()=>act({t:'hplay',card:sel[0]}),sel.length!=1),btn('No puedo: cambiar 1 por 2',()=>act({t:'hpass',card:sel[0]}),sel.length!=1));
+      if(jg)acc.append(btn('Jugar carta',()=>act({t:'hplay',card:sel[0]}),sel.length!=1),btn('No puedo: cambiar 1 por 2',()=>act({t:'hpass',card:sel[0]}),sel.length!=1,'alt'));
     }else if(jg)txt.textContent='Los demás están votando tu viñeta…';
     else if(v.voted)txt.textContent='Voto enviado. Esperando…';
-    else{txt.textContent='¿La viñeta tiene sentido en la historia?';acc.append(btn('👍 Sí',()=>act({t:'vote',ok:true})),btn('👎 Rechazar',()=>act({t:'vote',ok:false})))}
+    else{txt.textContent='¿La viñeta tiene sentido en la historia?';acc.append(btn('👍 Sí',()=>act({t:'vote',ok:true})),btn('👎 Rechazar',()=>act({t:'vote',ok:false}),false,'alt'))}
   }else{
     const todas=(v.st||[]).every(s=>s.f),pick=ph=='juzgar'&&jg&&todas;
     if(inf)centro.append(h('div','historia',v.hist.map(c=>card(c))));
     if(!v.st&&v.first&&ph!='fin')centro.append(h('div','historia',card(v.first)));
     (v.st||[]).forEach((s,i)=>{
-      const r=h('div','historia'+(pick?' click':'')+(ph!='juzgar'&&i==v.wi?' gana':''),s.c.map(c=>{
+      const r=h('div','historia'+(pick?' click':'')+(ph!='juzgar'&&i==v.wi?' gana':'')+(ph!='juzgar'&&v.wi!=null&&i!=v.wi?' perdio':''),s.c.map(c=>{
         if(c)return card(c);
         const d=h('div','carta dorso'+(jg&&!s.f?' voltear':''),'?');
         if(jg&&!s.f)d.onclick=()=>act({t:'reveal',i});return d}));
@@ -247,36 +355,59 @@ function render(v){
     const w=v.pl.find(p=>p.id==v.win);
     if(ph=='juzgar'){
       if(!jg)txt.textContent=jn.n+' está dando vuelta las historias…';
-      else if(!todas){txt.textContent='Tocá las cartas boca abajo para darlas vuelta de a una.';const k=v.st.findIndex(s=>!s.f);acc.append(btn('Voltear siguiente',()=>act({t:'reveal',i:k})))}
+      else if(!todas){txt.textContent='Tocá las cartas boca abajo para darlas vuelta de a una.';const k=v.st.findIndex(s=>!s.f);acc.append(btn('Voltear siguiente',()=>act({t:'reveal',i:k}),false,'alt'))}
       else txt.textContent='Tocá la historia que más te hizo reír.';
     }else if(ph=='fin'){
-      centro.prepend(h('div','grande',w?'🏆 ¡Ganó '+w.n+'! 🏆':'🤝 '+v.res));
+      centro.prepend(h('div','grande trofeo',w?'🏆 ¡Ganó '+w.n+'! 🏆':'🤝 '+v.res));
       if(isHost)acc.append(btn('Jugar otra vez',()=>act({t:'again'})));
     }else{
       txt.textContent=v.res||w.n+' gana '+(v.red?'2 puntos':'1 punto')+'.';
       if(jg||isHost)acc.append(btn('Siguiente ronda',()=>act({t:'next'})));
     }
   }
+  const raw=txt.textContent;if(raw!==T.txt)txt.classList.add('cambia');puntos(txt);
+  const sg=[...acc.children].map(b=>b.textContent).join('|');if(sg!==T.acc)acc.classList.add('nuevo');
   mesa.append(txt,acc);app.append(mesa);
-  if(ph!='lobby'&&ph!='fin'){
-    const can=(ph=='juez'&&jg)||turno||(ph=='hist'&&jg);
+  if(handNow){
+    const can=(ph=='juez'&&jg)||turno||(ph=='hist'&&jg);let nk=0;
     app.append(h('div','mano',v.hand.map(id=>{
-      const ok=can&&!(id[0]=='r'&&(v.red||ph=='juez')),i=sel.indexOf(id),el=card(id,'mia'+(ok?'':' off')+(i>=0?' sel':''));
+      const ok=can&&!(id[0]=='r'&&(v.red||ph=='juez')),i=sel.indexOf(id),nuevo=!T.hand||!T.hand.has(id),was=T.sel.includes(id);
+      const el=card(id,'mia'+(ok?'':' off')+(i>=0?' sel':'')+(nuevo?' reparte':i>=0&&!was?' sube':i<0&&was?' baja':''));
+      if(nuevo)el.style.setProperty('--d',(nk++*80)+'ms');
       if(i>=0&&max==2)el.append(h('span','num',String(i+1)));
       if(ok)el.onclick=()=>{if(i>=0)sel.splice(i,1);else{sel.push(id);if(sel.length>max)sel.shift()}render(V)};
       return el})));
     ajustarMano();
   }
+  app.scrollTop=scroll;
   ajustarCentro();
+  animarCentro();
+  if(handNow)fantasmas(old,v.hand);
+  // sellos y confeti al cambiar de fase
+  if(T.ph&&T.ph!=ph){
+    const w=v.pl.find(p=>p.id==v.win);
+    if(ph=='resultado'){sello(w?'¡'+w.n+' gana!':'¡Cabrón!',w?'':'rojo');if(w)confeti(70)}
+    else if(ph=='fin'){sello(w?'¡Ganó '+w.n+'!':'¡Empate!',w?'':'cian');confeti(w?220:60)}
+    else if(T.ph=='voto'&&ph=='hist'){const ok=v.hist.length>(T.hist||0);sello(ok?'¡Aceptada!':'¡Rechazada!',ok?'verde':'rojo')}
+  }
+  // recordar lo dibujado para animar solo lo que cambia
+  T.hand=handNow?new Set(v.hand):null;T.sel=sel.slice();T.players=new Set(v.pl.map(p=>p.id));T.ok=okSet;
+  T.score=ph=='lobby'?{}:Object.fromEntries(v.pl.map(p=>[p.id,p.s]));T.judge=ph=='lobby'?null:v.judge;
+  T.ph=ph;T.txt=raw;T.acc=sg;T.hist=v.hist.length;
 }
 function ajustarMano(){
   const m=$('.mano');if(!m||!m.children.length)return;
-  const n=m.children.length,W=m.clientWidth-28;
-  if(W<640){m.classList.add('grid');m.style.setProperty('--cw',Math.min(Math.floor((W-24)/4),Math.floor(innerHeight*.34/Math.ceil(n/4)*.6786))+'px');m.style.setProperty('--sp','0px')}
-  else{
+  const n=m.children.length,W=m.clientWidth-28,cs=[...m.children];
+  if(W<640){
+    m.classList.add('grid');m.style.setProperty('--cw',Math.min(Math.floor((W-24)/4),Math.floor(innerHeight*.34/Math.ceil(n/4)*.6786))+'px');m.style.setProperty('--sp','0px');
+    cs.forEach(c=>{c.style.setProperty('--fr','0deg');c.style.setProperty('--fy','0px')});
+  }else{
     m.classList.remove('grid');
     const cw=Math.min(200,Math.floor(innerHeight*.25*.6786),Math.max(70,Math.floor(W/n)-10)),step=n>1?Math.min(cw+10,(W-cw)/(n-1)):0;
     m.style.setProperty('--cw',cw+'px');m.style.setProperty('--sp',(step-cw)+'px');
+    // abanico: las cartas se abren como en la mano de un jugador de truco
+    const ang=Math.min(8,n*1.3),caida=Math.min(16,n*2);
+    cs.forEach((c,i)=>{const t=n>1?i/(n-1)*2-1:0;c.style.setProperty('--fr',(t*ang).toFixed(2)+'deg');c.style.setProperty('--fy',(t*t*caida).toFixed(1)+'px')});
   }
 }
 function ajustarCentro(){
