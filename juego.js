@@ -410,9 +410,10 @@ function ajustarMano(){
     cs.forEach((c,i)=>{const t=n>1?i/(n-1)*2-1:0;c.style.setProperty('--fr',(t*ang).toFixed(2)+'deg');c.style.setProperty('--fy',(t*t*caida).toFixed(1)+'px')});
   }
 }
+// Tamaño fijo de las cartas de la mesa: se calcula según el alto de la pantalla y no se achica al llenarse el centro
 function ajustarCentro(){
-  const c=$('.centro');if(!c)return;let w=Math.min(150,innerHeight*.26*.6786);c.style.setProperty('--w',w+'px');
-  for(let i=0;i<16&&w>40&&(c.scrollHeight>c.clientHeight+1||c.scrollWidth>c.clientWidth+1);i++){w*=.9;c.style.setProperty('--w',w+'px')}
+  const c=$('.centro');if(!c)return;
+  c.style.setProperty('--w',Math.min(150,innerHeight*.26*.6786)+'px');
 }
 addEventListener('resize',()=>{ajustarMano();ajustarCentro()});
 home();

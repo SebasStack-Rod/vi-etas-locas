@@ -135,7 +135,7 @@ h1{
 
 /* ---------- centro de la mesa ---------- */
 .centro{
-  flex:1;min-height:0;overflow:hidden;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;
+  flex:1;min-height:0;overflow:auto;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;
   margin:16px 0 4px;padding:8px 4px;text-align:center;
 }
 .centro>*{flex:none}
