@@ -1,0 +1,130 @@
+/* VIÑETAS LOCAS — adaptación fluida para móviles y pantallas pequeñas/grandes.
+   Se carga después de estilo.css para conservar la identidad visual y el juego. */
+:root {
+  --w: clamp(64px, min(14vw, 10vh), 150px);
+}
+html {
+  width: 100%;
+  min-width: 0;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+body {
+  min-width: 0;
+  min-height: 100%;
+  overscroll-behavior: none;
+}
+#app {
+  width: 100%;
+  max-width: 1600px;
+  min-width: 0;
+  padding: clamp(4px, 1vw, 14px);
+  padding-left: max(clamp(4px, 1vw, 14px), env(safe-area-inset-left));
+  padding-right: max(clamp(4px, 1vw, 14px), env(safe-area-inset-right));
+  padding-top: max(clamp(4px, 1vw, 14px), env(safe-area-inset-top));
+  padding-bottom: max(clamp(4px, 1vw, 14px), env(safe-area-inset-bottom));
+}
+button, input, select, textarea { font: inherit; }
+button, [role="button"], .btn, .sala, .historia.click, .carta.voltear {
+  touch-action: manipulation;
+}
+img { max-width: 100%; }
+.top { min-width: 0; gap: clamp(5px, 1vw, 12px); }
+.top > * { min-width: 0; }
+.mesa {
+  min-width: 0;
+  margin: clamp(7px, 1.2vw, 16px) clamp(4px, 1vw, 12px);
+  padding: clamp(10px, 2vw, 28px) clamp(5px, 1.3vw, 16px) 8px;
+  border-radius: clamp(18px, 3vw, 44px);
+  border-width: clamp(5px, .8vw, 10px);
+}
+.centro { min-width: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+.asientos { gap: clamp(6px, 1vw, 12px); }
+.asiento { min-width: clamp(62px, 8vw, 90px); padding-inline: clamp(5px, 1vw, 10px); }
+.historia { max-width: 100%; min-width: 0; gap: clamp(3px, .6vw, 6px); margin-inline: 2px; }
+.acciones { max-width: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.acciones .btn { max-width: 100%; }
+#aviso { max-width: calc(100vw - 16px); overflow-wrap: anywhere; }
+
+/* Teléfonos: aprovechar el ancho, reducir marcos y permitir desplazamiento vertical
+   dentro de la mesa sin que se recorten las cartas ni los controles. */
+@media (max-width: 700px) {
+  :root { --w: clamp(58px, 18vw, 112px); }
+  html, body { overflow: hidden; }
+  #app { height: 100dvh; min-height: 0; gap: 3px; }
+  .top { flex-wrap: nowrap; align-items: center; }
+  h1 { font-size: clamp(1.15rem, 5.5vw, 1.8rem); letter-spacing: 1px; }
+  .sala { gap: 4px; font-size: clamp(.78rem, 3vw, 1rem); padding: 3px 5px; border-width: 2px; }
+  .sala .m { font-size: .72rem; }
+  .sala .cod { letter-spacing: 2px; padding-inline: 5px; }
+  .mesa {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 7px 3px 8px;
+    padding: 12px 5px 7px;
+    border-radius: 20px;
+    border-width: 5px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .asientos { flex-wrap: wrap; gap: 7px; margin-bottom: 4px; }
+  .asiento { min-width: 58px; max-width: 31%; padding: 2px 5px; font-size: .75rem; border-width: 2px; }
+  .asiento b { max-width: 100%; }
+  .av { font-size: 1.2rem; }
+  .ficha { width: 26px; height: 26px; font-size: .9rem; }
+  .centro { flex: 1 0 auto; overflow: visible; margin: 8px 0 4px; padding: 6px 2px; }
+  .grande { font-size: clamp(1.25rem, 5vw, 1.7rem); }
+  .texto { font-size: clamp(.85rem, 3.4vw, 1rem); max-width: 100%; }
+  .historia { padding: 4px; border-width: 2px; border-radius: 12px; }
+  .historia small { font-size: .72rem; }
+  .carta { border-width: 2px; border-radius: 8px; }
+  .carta.roja { box-shadow: 0 0 0 2px #fff, 2px 3px 0 2px var(--tinta), 0 6px 10px rgba(0,0,0,.3); }
+  .hueco, .dorso { font-size: 2rem; }
+  .acciones { margin: 5px auto; gap: 5px; }
+  .btn { font-size: clamp(.9rem, 3.8vw, 1.1rem); padding: 7px 10px; }
+}
+
+/* Teléfonos angostos y ventanas divididas. */
+@media (max-width: 380px) {
+  :root { --w: clamp(52px, 17vw, 68px); }
+  #app { padding: 4px; }
+  h1 { font-size: 1.12rem; }
+  .sala { font-size: .72rem; }
+  .sala .m { display: none; }
+  .mesa { margin-inline: 2px; padding-inline: 3px; }
+  .asiento { min-width: 50px; font-size: .68rem; }
+  .acciones { gap: 4px; }
+  .btn { padding: 6px 8px; }
+}
+
+/* Pantallas muy bajas en horizontal: priorizar mesa y controles compactos. */
+@media (max-height: 500px) and (orientation: landscape) {
+  :root { --w: clamp(48px, 10vh, 82px); }
+  #app { padding-block: 3px; }
+  .top { gap: 4px; }
+  h1 { font-size: 1.25rem; }
+  .mesa { margin-block: 5px; padding-top: 7px; }
+  .asientos { gap: 5px; margin-bottom: 2px; }
+  .asiento { padding: 1px 5px; }
+  .centro { margin-block: 4px; }
+  .grande { font-size: 1.2rem; }
+  .texto { font-size: .85rem; }
+  .btn { padding: 5px 8px; }
+}
+
+/* Tablets, monitores anchos y ventanas grandes: limitar líneas excesivas,
+   agrandar cartas de forma progresiva sin desbordar la pantalla. */
+@media (min-width: 701px) {
+  :root { --w: clamp(90px, min(11vw, 17vh), 170px); }
+  .mesa { padding-inline: clamp(12px, 2vw, 28px); }
+  .centro { padding-inline: clamp(6px, 1.5vw, 24px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}
